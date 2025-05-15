@@ -12,19 +12,18 @@ import Navbar from "../components/Navbar.jsx";
 
 function App() {
     return (
-        <div className="h-screen flex flex-col">
-            <Navbar />
+        <div className="min-h-screen flex flex-col overflow-hidden">
+            <Navbar/>
             <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<></>} />
-                <Route path="/reset" element={<PasswordReset />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/duel" element={<DuelSetup />} />
-                <Route path="/study" element={<StudyRoom />} />
-                <Route path="/quiz" element={<Quiz />} />
-                <Route path="/results" element={<Results />} />
-                <Route path="/login/sso-callback" element={<SSOCallback />} />
+                <Route path="/" element={<LandingPage/>}/>
+                <Route path="/login" element={<Login/>}/>
+                <Route path="/reset" element={<PasswordReset/>}/>
+                <Route path="/dashboard" element={<Dashboard/>}/>
+                <Route path="/duel" element={<DuelSetup/>}/>
+                <Route path="/study" element={<StudyRoom/>}/>
+                <Route path="/quiz" element={<Quiz/>}/>
+                    <Route path="/results" element={<Results/>}/>
+                <Route path="/login/sso-callback" element={<SSOCallback/>}/>
             </Routes>
         </div>
     );
