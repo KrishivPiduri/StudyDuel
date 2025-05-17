@@ -5,8 +5,9 @@ import { useWebSocket } from "../../context/WebSocketContext"; // adjust as need
 
 export default function StudyRoom() {
     const [searchParams] = useSearchParams();
-    const topic = searchParams.get("topic") || "Unknown Topic";
-    const time = parseInt(searchParams.get("time")) || 15;
+    const [topic, setTopic] = useState("Unknown Topic");
+    const [time, setTime] = useState(15);
+    const [loading, setLoading] = useState(true);
     const roomCode = searchParams.get("code");
 
     const [isHost, setIsHost] = useState(false);
@@ -60,12 +61,35 @@ export default function StudyRoom() {
 
         const handleMessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log(data);
+            const room = data.room || {};
+
+            if (room) {
+                setTopic(room.topic || "Unknown Topic");
+                setTime(room.studyTime || 15);
+                setCountdown((room.studyTime || 15) * 60);
+
+                // Set role
+                const isCurrentHost = room.hostId === user.id;
+                setIsHost(isCurrentHost);
+
+                // Set opponent readiness
+                const opponentIsReady = isCurrentHost ? room.guestReady : room.hostReady;
+                setOpponentReady(opponentIsReady);
+
+                // Set connection status of opponent
+                setGuestStatus(room.opponentConnected ? "connected" : "waiting");
+
+                // ✅ Set loading to false after we get room data
+                setLoading(false);
+            }
+
             switch (data.type) {
                 case "alrHost":
                     setIsHost(true);
                     break;
                 case "joinSucc":
-                    setGuestStatus("connected");
+                    // All room info is handled above
                     break;
                 case "guestReady":
                     if (isHost) setOpponentReady(true);
@@ -79,10 +103,9 @@ export default function StudyRoom() {
         };
 
         socket.addEventListener("message", handleMessage);
-        return () => {
-            socket.removeEventListener("message", handleMessage);
-        };
-    }, [socketRef, isHost]);
+        return () => socket.removeEventListener("message", handleMessage);
+    }, [socketRef, user, isHost]);
+
 
     // Start countdown when both are ready
     useEffect(() => {
@@ -122,6 +145,16 @@ export default function StudyRoom() {
             send({ action: "guestReady", roomCode });
         }
     };
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-gray-700 text-xl font-semibold animate-pulse">
+                    Joining room...
+                </div>
+            </div>
+        );
+    }
+
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-10">
@@ -130,6 +163,9 @@ export default function StudyRoom() {
                 <div className="text-center">
                     <h1 className="text-2xl font-bold">Study Duel: {topic}</h1>
                     <p className="text-gray-600">Study Time: {time} minutes</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                        You are the <span className="font-semibold">{isHost ? "Host" : "Guest"}</span>
+                    </p>
                 </div>
 
                 {/* Participant Status */}
@@ -143,7 +179,7 @@ export default function StudyRoom() {
                     </div>
                     {/* Opponent */}
                     <div className="border rounded-xl p-4 text-center">
-                        <p className="font-semibold">Opponent</p>
+                        <p className="font-semibold">{isHost ? "Opponent" : "Host"}</p>
                         <p className={`text-sm mt-1 ${opponentReady ? "text-green-600" : "text-gray-500"}`}>
                             {opponentReady
                                 ? "Ready ✅"
