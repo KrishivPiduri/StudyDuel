@@ -1,20 +1,73 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+const WEBSOCKET_URL = "wss://0qv6ptdpdh.execute-api.us-east-1.amazonaws.com/production/";
 
 export default function DuelSetup() {
     const [topic, setTopic] = useState("");
     const [timer, setTimer] = useState(15);
     const [duelLink, setDuelLink] = useState(null);
+    const [questions, setQuestions] = useState(10);
+    const [errors, setErrors] = useState({});
+
+    const topicRef = useRef(null);
+    const questionsRef = useRef(null);
+    const socketRef = useRef(null);
     const navigate = useNavigate();
 
-    const handleGenerateLink = () => {
-        if (!topic) return alert("Please enter a topic.");
+    const connectWebSocket = () => {
+        socketRef.current = new WebSocket(WEBSOCKET_URL);
 
-        // In real use, you'd call your backend to create a duel session
-        const link = `${window.location.origin}/study?topic=${encodeURIComponent(
-            topic
-        )}&time=${timer}`;
-        setDuelLink(link);
+        socketRef.current.onopen = () => {
+            console.log("WebSocket connection established.");
+            socketRef.current.send(
+                JSON.stringify({
+                    action: "createRoom",
+                    topic: topic,
+                    studyTime: timer,
+                    questions: questions,
+                })
+            );
+        };
+
+        socketRef.current.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === "roomCreated") {
+                setDuelLink(`${window.location.origin}/study?code=${data.roomCode}`);
+            }
+        };
+
+        socketRef.current.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+    };
+
+    const handleGenerateLink = () => {
+        const newErrors = {};
+
+        if (!topic.trim()) {
+            newErrors.topic = "Please enter a topic.";
+        }
+
+        if (!questions || isNaN(questions) || questions < 1) {
+            newErrors.questions = "Please enter a valid number of questions.";
+        }
+
+        setErrors(newErrors);
+
+        if (Object.keys(newErrors).length > 0) {
+            if (newErrors.topic) topicRef.current.focus();
+            else if (newErrors.questions) questionsRef.current.focus();
+            return;
+        }
+
+        connectWebSocket();
+        socketRef.current.send(JSON.stringify({
+            action: "createRoom",
+            topic: topic,
+            studyTime: timer,
+            questions: questions,
+        }));
     };
 
     return (
@@ -28,12 +81,37 @@ export default function DuelSetup() {
                         What topic are you studying?
                     </label>
                     <input
+                        ref={topicRef}
                         type="text"
                         placeholder="e.g. The French Revolution"
                         value={topic}
                         onChange={(e) => setTopic(e.target.value)}
-                        className="w-full placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className={`w-full placeholder-gray-400 border ${
+                            errors.topic ? "border-red-500" : "border-gray-300"
+                        } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
+                    {errors.topic && (
+                        <p className="text-sm text-red-500 mt-1">{errors.topic}</p>
+                    )}
+                </div>
+
+                {/* Questions Quantity */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        How many questions do you want in your quiz?
+                    </label>
+                    <input
+                        ref={questionsRef}
+                        type="number"
+                        value={questions}
+                        onChange={(e) => setQuestions(parseInt(e.target.value))}
+                        className={`w-full placeholder-gray-400 border ${
+                            errors.questions ? "border-red-500" : "border-gray-300"
+                        } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    />
+                    {errors.questions && (
+                        <p className="text-sm text-red-500 mt-1">{errors.questions}</p>
+                    )}
                 </div>
 
                 {/* Timer Selection */}
