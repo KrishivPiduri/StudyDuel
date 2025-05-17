@@ -1,4 +1,3 @@
-// src/pages/Quiz.tsx
 import { useEffect, useState } from "react";
 import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
@@ -16,7 +15,6 @@ const questions = [
         options: ["3", "4", "5", "22"],
         answer: "4",
     },
-    // Add more questions here
 ];
 
 export default function Quiz() {
@@ -35,6 +33,8 @@ export default function Quiz() {
     const current = questions[currentIndex];
 
     useEffect(() => {
+        if (currentIndex >= questions.length) return; // 👈 prevent effect after quiz ends
+
         if (questionTimer === 0) {
             handleSelect(null); // Time's up!
         }
@@ -56,11 +56,14 @@ export default function Quiz() {
             playCorrect();
             const baseScore = 1000;
             const speedBonus = Math.floor((questionTimer / 15) * 100);
-            const pointsEarned = baseScore + speedBonus;
-            setScore((s) => s + pointsEarned);
-            setStreak((s) => s + 1);
+            const nextStreak = streak + 1;
+            const streakMultiplier = 1 + nextStreak * 0.1;
+            const pointsEarned = Math.floor((baseScore + speedBonus) * streakMultiplier);
 
-            if (streak + 1 === 3) {
+            setScore((s) => s + pointsEarned);
+            setStreak(nextStreak);
+
+            if (nextStreak === 3) {
                 playLevelUp();
             }
         } else {
@@ -83,7 +86,7 @@ export default function Quiz() {
                 <p className="text-2xl">Final Score: <span className="text-green-400 font-bold">{score}</span></p>
                 <button
                     onClick={() => window.location.reload()}
-                    className="px-6 py-2 bg-green-600 text-white rounded-xl mt-4 hover:bg-green-700"
+                    className="px-6 py-2 bg-green-600 text-white rounded-xl mt-4 hover:bg-green-700 cursor-pointer"
                 >
                     Play Again
                 </button>
@@ -101,7 +104,7 @@ export default function Quiz() {
                         key={opt}
                         disabled={!!selected}
                         onClick={() => handleSelect(opt)}
-                        className={`p-4 rounded-xl transition-all duration-300 text-lg font-semibold
+                        className={`p-4 rounded-xl transition-all duration-300 text-lg font-semibold cursor-pointer
                             ${selected
                             ? opt === current.answer
                                 ? "bg-green-500 text-white"

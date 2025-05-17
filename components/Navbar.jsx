@@ -13,8 +13,8 @@ export default function Navbar() {
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <Link to="/" className="text-2xl font-bold text-indigo-600">
-                            CramMate
+                        <Link to="/dashboard" className="text-2xl font-bold text-indigo-600">
+                            StudyDuel
                         </Link>
                     </div>
 
