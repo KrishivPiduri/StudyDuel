@@ -9,6 +9,20 @@ import Results from "./pages/Results";
 import Login from "./pages/Login";
 import SSOCallback from "./pages/SSOCallback";
 import Navbar from "../components/Navbar.jsx";
+import {RedirectToSignIn, useUser} from "@clerk/clerk-react";
+
+function ProtectedRoute({ children }) {
+    const { isSignedIn, isLoaded } = useUser();
+
+    if (!isLoaded) return null; // or a spinner
+
+    if (!isSignedIn) {
+        return <RedirectToSignIn />;
+    }
+
+    return children;
+}
+
 
 function App() {
     return (
@@ -18,10 +32,10 @@ function App() {
                 <Route path="/" element={<LandingPage/>}/>
                 <Route path="/login" element={<Login/>}/>
                 <Route path="/reset" element={<PasswordReset/>}/>
-                <Route path="/dashboard" element={<Dashboard/>}/>
-                <Route path="/duel" element={<DuelSetup/>}/>
-                <Route path="/study" element={<StudyRoom/>}/>
-                <Route path="/quiz" element={<Quiz/>}/>
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>}/>
+                <Route path="/duel" element={<ProtectedRoute><DuelSetup/></ProtectedRoute>}/>
+                <Route path="/study" element={<ProtectedRoute><StudyRoom/></ProtectedRoute>}/>
+                <Route path="/quiz" element={<ProtectedRoute><Quiz/></ProtectedRoute>}/>
                     <Route path="/results" element={<Results/>}/>
                 <Route path="/login/sso-callback" element={<SSOCallback/>}/>
             </Routes>
