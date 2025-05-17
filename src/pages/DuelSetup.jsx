@@ -1,39 +1,40 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const WEBSOCKET_URL = "wss://0qv6ptdpdh.execute-api.us-east-1.amazonaws.com/production/";
+import {useWebSocket} from "../../context/WebSocketContext.jsx";
+import {useAuth, useUser} from "@clerk/clerk-react";
 
 export default function DuelSetup() {
     const [topic, setTopic] = useState("");
     const [timer, setTimer] = useState(15);
-    const [duelLink, setDuelLink] = useState(null);
     const [questions, setQuestions] = useState(10);
     const [errors, setErrors] = useState({});
 
     const topicRef = useRef(null);
     const questionsRef = useRef(null);
-    const socketRef = useRef(null);
+    const { connect, send, socketRef, roomCodeRef } = useWebSocket();
     const navigate = useNavigate();
+    const { user } = useUser();
 
     const connectWebSocket = () => {
-        socketRef.current = new WebSocket(WEBSOCKET_URL);
+        connect();
 
         socketRef.current.onopen = () => {
             console.log("WebSocket connection established.");
-            socketRef.current.send(
-                JSON.stringify({
-                    action: "createRoom",
-                    topic: topic,
-                    studyTime: timer,
-                    questions: questions,
-                })
-            );
+            send({
+                action: "createRoom",
+                topic: topic,
+                studyTime: timer,
+                questions: questions,
+                hostId: user.id
+            });
         };
 
         socketRef.current.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log(event);
             if (data.type === "roomCreated") {
-                setDuelLink(`${window.location.origin}/study?code=${data.roomCode}`);
+                roomCodeRef.current = data.roomCode;
+                navigate(`/study?code=${data.roomCode}`);
             }
         };
 
@@ -62,12 +63,6 @@ export default function DuelSetup() {
         }
 
         connectWebSocket();
-        socketRef.current.send(JSON.stringify({
-            action: "createRoom",
-            topic: topic,
-            studyTime: timer,
-            questions: questions,
-        }));
     };
 
     return (
@@ -139,20 +134,6 @@ export default function DuelSetup() {
                 >
                     Generate Duel Link
                 </button>
-
-                {/* Shareable Link Display */}
-                {duelLink && (
-                    <div className="bg-gray-50 p-4 border border-gray-300 rounded-lg text-center">
-                        <p className="mb-2 text-gray-700 font-medium">Share this link with your friend:</p>
-                        <input
-                            type="text"
-                            readOnly
-                            value={duelLink}
-                            className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
-                            onClick={(e) => e.target.select()}
-                        />
-                    </div>
-                )}
             </div>
         </div>
     );
