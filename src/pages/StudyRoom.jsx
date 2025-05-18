@@ -62,43 +62,51 @@ export default function StudyRoom() {
         const handleMessage = (event) => {
             const data = JSON.parse(event.data);
             console.log(data);
-            const room = data.room || {};
+            console.log(data.type==="oppJoined");
+            if (data.type === "oppJoined") {
+                setGuestStatus("connected");
+            } else {
+                const room = data.room || {};
 
-            if (room) {
-                setTopic(room.topic || "Unknown Topic");
-                setTime(room.studyTime || 15);
-                setCountdown((room.studyTime || 15) * 60);
+                if (room) {
+                    setTopic(room.topic || "Unknown Topic");
+                    setTime(room.studyTime || 15);
+                    setCountdown((room.studyTime || 15) * 60);
 
-                // Set role
-                const isCurrentHost = room.hostId === user.id;
-                setIsHost(isCurrentHost);
+                    // Set role
+                    const isCurrentHost = room.hostId === user.id;
+                    setIsHost(isCurrentHost);
 
-                // Set opponent readiness
-                const opponentIsReady = isCurrentHost ? room.guestReady : room.hostReady;
-                setOpponentReady(opponentIsReady);
+                    // Set opponent readiness
+                    const opponentIsReady = isCurrentHost ? room.guestReady : room.hostReady;
+                    setOpponentReady(opponentIsReady);
 
-                // Set connection status of opponent
-                setGuestStatus(room.opponentConnected ? "connected" : "waiting");
+                    // ✅ Set loading to false after we get room data
+                    setLoading(false);
+                }
 
-                // ✅ Set loading to false after we get room data
-                setLoading(false);
-            }
-
-            switch (data.type) {
-                case "alrHost":
-                    setIsHost(true);
-                    break;
-                case "joinSucc":
-                    // All room info is handled above
-                    break;
-                case "guestReady":
-                    if (isHost) setOpponentReady(true);
-                    break;
-                case "hostReady":
-                    if (!isHost) setOpponentReady(true);
-                    break;
-                default:
-                    break;
+                switch (data.type) {
+                    case "alrHost":
+                        setIsHost(true);
+                        break;
+                    case "joinSucc":
+                        // All room info is handled above
+                        break;
+                    case "opponentReady":
+                        setOpponentReady(true);
+                        break;
+                    case "startGame":
+                        setStudyStarted(true);
+                        break;
+                    case "guestReady":
+                        if (isHost) setOpponentReady(true);
+                        break;
+                    case "hostReady":
+                        if (!isHost) setOpponentReady(true);
+                        break;
+                    default:
+                        break;
+                }
             }
         };
 
@@ -138,12 +146,11 @@ export default function StudyRoom() {
 
     const handleReady = () => {
         setYouReady(true);
-        if (isHost) {
-            send({ action: "hostReady", roomCode });
-        } else {
-            setGuestStatus("ready");
-            send({ action: "guestReady", roomCode });
-        }
+        send({
+            action: "ready",
+            roomCode,
+            userId: user.id,
+        });
     };
     if (loading) {
         return (
@@ -220,15 +227,6 @@ export default function StudyRoom() {
                             className="w-full max-w-md p-2 border border-gray-300 rounded-lg text-sm bg-white"
                             onClick={(e) => e.target.select()}
                         />
-                        <button
-                            onClick={() => {
-                                navigator.clipboard.writeText(window.location.href);
-                                alert("Link copied to clipboard!");
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm transition"
-                        >
-                            Copy
-                        </button>
                     </div>
                 </div>
             </div>

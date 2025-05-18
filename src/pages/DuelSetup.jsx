@@ -8,6 +8,7 @@ export default function DuelSetup() {
     const [timer, setTimer] = useState(15);
     const [questions, setQuestions] = useState(10);
     const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
 
     const topicRef = useRef(null);
     const questionsRef = useRef(null);
@@ -44,6 +45,7 @@ export default function DuelSetup() {
     };
 
     const handleGenerateLink = () => {
+        setLoading(true);
         const newErrors = {};
 
         if (!topic.trim()) {
@@ -132,7 +134,7 @@ export default function DuelSetup() {
                     className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition cursor-pointer"
                     onClick={handleGenerateLink}
                 >
-                    Generate Duel Link
+                    {loading ? "Loading..." : "Generate Duel Link"}
                 </button>
             </div>
         </div>
