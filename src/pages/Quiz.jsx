@@ -3,24 +3,16 @@ import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 import levelUpSfx from "/sounds/level-up.mp3";
-
-const questions = [
-    {
-        question: "What is the capital of France?",
-        options: ["Berlin", "Paris", "Rome", "Madrid"],
-        answer: "Paris",
-    },
-    {
-        question: "What is 2 + 2?",
-        options: ["3", "4", "5", "22"],
-        answer: "4",
-    },
-];
+import useWebSocket from "react-use-websocket";
 
 export default function Quiz() {
     const [playCorrect] = useSound(correctSfx);
     const [playWrong] = useSound(wrongSfx);
     const [playLevelUp] = useSound(levelUpSfx);
+
+    const [topicName, setTopicName] = useState("");
+    const [scopeDescription, setScopeDescription] = useState("");
+    const [hasSubmittedDescription, setHasSubmittedDescription] = useState(false);
 
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selected, setSelected] = useState(null);
@@ -29,20 +21,22 @@ export default function Quiz() {
     const [showFeedback, setShowFeedback] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
     const [questionTimer, setQuestionTimer] = useState(15);
+    const {questions} = useWebSocket();
 
     const current = questions[currentIndex];
 
     useEffect(() => {
-        if (currentIndex >= questions.length) return; // 👈 prevent effect after quiz ends
+        if (currentIndex >= questions.length || !hasSubmittedDescription) return;
 
         if (questionTimer === 0) {
-            handleSelect(null); // Time's up!
+            handleSelect(null);
         }
+
         const interval = setInterval(() => {
             setQuestionTimer((t) => (t > 0 ? t - 1 : 0));
         }, 1000);
         return () => clearInterval(interval);
-    }, [questionTimer]);
+    }, [questionTimer, hasSubmittedDescription]);
 
     const handleSelect = (option) => {
         if (selected) return;
@@ -78,6 +72,46 @@ export default function Quiz() {
             setCurrentIndex((i) => i + 1);
         }, 1500);
     };
+
+    if (!hasSubmittedDescription) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen w-screen bg-black text-white px-4 text-center">
+                <h1 className="text-3xl font-bold mb-4">Set Up Your Custom Quiz</h1>
+                <p className="text-md text-gray-300 mb-6 max-w-xl">
+                    Tell us what you're studying and describe the full scope of what you need to know.
+                    Include chapter names, key topics, concepts, or any details from your course.
+                    The more detailed you are, the better your questions will be.
+                </p>
+
+                <input
+                    type="text"
+                    className="w-full max-w-xl p-4 text-black rounded-lg mb-4"
+                    placeholder="Enter your topic (e.g., Biology 101, World War II)"
+                    value={topicName}
+                    onChange={(e) => setTopicName(e.target.value)}
+                />
+
+                <textarea
+                    className="w-full max-w-xl h-40 p-4 text-black rounded-lg resize-none mb-4"
+                    placeholder="Describe the scope of your topic in detail (e.g., cell biology, photosynthesis, evolution...)"
+                    value={scopeDescription}
+                    onChange={(e) => setScopeDescription(e.target.value)}
+                />
+
+                <button
+                    disabled={topicName.trim().length < 3 || scopeDescription.trim().length < 20}
+                    onClick={() => setHasSubmittedDescription(true)}
+                    className={`px-6 py-3 rounded-xl text-white font-bold transition-all ${
+                        topicName.trim().length < 3 || scopeDescription.trim().length < 20
+                            ? "bg-gray-600 cursor-not-allowed"
+                            : "bg-green-600 hover:bg-green-700"
+                    }`}
+                >
+                    Start Quiz
+                </button>
+            </div>
+        );
+    }
 
     if (currentIndex >= questions.length) {
         return (

@@ -1,18 +1,22 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {useWebSocket} from "../../context/WebSocketContext.jsx";
-import {useAuth, useUser} from "@clerk/clerk-react";
+import { useWebSocket } from "../../context/WebSocketContext.jsx";
+import { useUser } from "@clerk/clerk-react";
 
 export default function DuelSetup() {
     const [topic, setTopic] = useState("");
+    const [scope, setScope] = useState("");
     const [timer, setTimer] = useState(15);
-    const [questions, setQuestions] = useState(10);
+    const [questions_, setQuestions_] = useState(10);
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
 
     const topicRef = useRef(null);
     const questionsRef = useRef(null);
-    const { connect, send, socketRef, roomCodeRef } = useWebSocket();
+    const scopeRef = useRef(null);
+    const timerRef = useRef(null);
+
+    const { connect, send, socketRef, roomCodeRef, questions } = useWebSocket();
     const navigate = useNavigate();
     const { user } = useUser();
 
@@ -23,19 +27,20 @@ export default function DuelSetup() {
             console.log("WebSocket connection established.");
             send({
                 action: "createRoom",
-                topic: topic,
+                topic,
+                scope,
                 studyTime: timer,
-                questions: questions,
-                hostId: user.id
+                questions,
+                hostId: user.id,
             });
         };
 
         socketRef.current.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log(event);
             if (data.type === "roomCreated") {
-                roomCodeRef.current = data.roomCode;
-                navigate(`/study?code=${data.roomCode}`);
+                const { roomCode } = data;
+                roomCodeRef.current = roomCode;
+                navigate(`/study?code=${roomCode}`);
             }
         };
 
@@ -48,19 +53,22 @@ export default function DuelSetup() {
         setLoading(true);
         const newErrors = {};
 
-        if (!topic.trim()) {
-            newErrors.topic = "Please enter a topic.";
-        }
-
-        if (!questions || isNaN(questions) || questions < 1) {
+        if (!topic.trim()) newErrors.topic = "Please enter a topic.";
+        if (!scope.trim() || scope.trim().length < 20)
+            newErrors.scope = "Please describe the scope in more detail (at least 20 characters).";
+        if (!questions_ || isNaN(questions_) || questions_ < 1)
             newErrors.questions = "Please enter a valid number of questions.";
-        }
+        if (!timer || isNaN(timer) || timer < 10)
+            newErrors.timer = "Please select a valid study time.";
 
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length > 0) {
             if (newErrors.topic) topicRef.current.focus();
+            else if (newErrors.scope) scopeRef.current.focus();
             else if (newErrors.questions) questionsRef.current.focus();
+            else if (newErrors.timer) timerRef.current.focus();
+            setLoading(false);
             return;
         }
 
@@ -83,13 +91,51 @@ export default function DuelSetup() {
                         placeholder="e.g. The French Revolution"
                         value={topic}
                         onChange={(e) => setTopic(e.target.value)}
-                        className={`w-full placeholder-gray-400 border ${
+                        className={`w-full border ${
                             errors.topic ? "border-red-500" : "border-gray-300"
                         } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
-                    {errors.topic && (
-                        <p className="text-sm text-red-500 mt-1">{errors.topic}</p>
-                    )}
+                    {errors.topic && <p className="text-sm text-red-500 mt-1">{errors.topic}</p>}
+                </div>
+
+                {/* Scope Description */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Describe the scope of your topic
+                    </label>
+                    <textarea
+                        ref={scopeRef}
+                        placeholder="Include chapters, subtopics, learning goals, or specific concepts..."
+                        value={scope}
+                        onChange={(e) => setScope(e.target.value)}
+                        rows={5}
+                        className={`w-full border ${
+                            errors.scope ? "border-red-500" : "border-gray-300"
+                        } rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    />
+                    {errors.scope && <p className="text-sm text-red-500 mt-1">{errors.scope}</p>}
+                </div>
+
+                {/* Study Time Dropdown */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        How much study time do you want?
+                    </label>
+                    <select
+                        ref={timerRef}
+                        value={timer}
+                        onChange={(e) => setTimer(parseInt(e.target.value))}
+                        className={`w-full border ${
+                            errors.timer ? "border-red-500" : "border-gray-300"
+                        } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    >
+                        {[10, 15, 20, 25, 30].map((min) => (
+                            <option key={min} value={min}>
+                                {min} minutes
+                            </option>
+                        ))}
+                    </select>
+                    {errors.timer && <p className="text-sm text-red-500 mt-1">{errors.timer}</p>}
                 </div>
 
                 {/* Questions Quantity */}
@@ -100,9 +146,9 @@ export default function DuelSetup() {
                     <input
                         ref={questionsRef}
                         type="number"
-                        value={questions}
-                        onChange={(e) => setQuestions(parseInt(e.target.value))}
-                        className={`w-full placeholder-gray-400 border ${
+                        value={questions_}
+                        onChange={(e) => setQuestions_(parseInt(e.target.value))}
+                        className={`w-full border ${
                             errors.questions ? "border-red-500" : "border-gray-300"
                         } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
@@ -111,25 +157,7 @@ export default function DuelSetup() {
                     )}
                 </div>
 
-                {/* Timer Selection */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Study Time (minutes)
-                    </label>
-                    <select
-                        value={timer}
-                        onChange={(e) => setTimer(parseInt(e.target.value))}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                    >
-                        {[10, 15, 20, 25, 30].map((min) => (
-                            <option key={min} value={min}>
-                                {min} minutes
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Generate Link */}
+                {/* Generate Link Button */}
                 <button
                     className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition cursor-pointer"
                     onClick={handleGenerateLink}

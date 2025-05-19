@@ -7,6 +7,7 @@ const WebSocketContext = createContext();
 export function WebSocketProvider({ children }) {
     const socketRef = useRef(null);
     const roomCodeRef = useRef(null);
+    const questionsRef = useRef(null);
 
     const connect = () => {
         if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
@@ -29,7 +30,7 @@ export function WebSocketProvider({ children }) {
     }, []);
 
     return (
-        <WebSocketContext.Provider value={{ socket: socketRef.current, connect, send, socketRef, roomCodeRef }}>
+        <WebSocketContext.Provider value={{ socket: socketRef.current, connect, send, socketRef, roomCodeRef, questionsRef }}>
             {children}
         </WebSocketContext.Provider>
     );
