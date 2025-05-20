@@ -119,7 +119,9 @@ export default function Quiz() {
                 <h1 className="text-4xl font-bold">Quiz Complete!</h1>
                 <p className="text-2xl">Final Score: <span className="text-green-400 font-bold">{score}</span></p>
                 <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => {
+                        navigate("/duel")
+                    }}
                     className="px-6 py-2 bg-green-600 text-white rounded-xl mt-4 hover:bg-green-700 cursor-pointer"
                 >
                     Play Again
