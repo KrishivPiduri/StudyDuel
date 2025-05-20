@@ -29,7 +29,7 @@ export default function DuelSetup() {
 
         let count = 0;
         const interval = setInterval(() => {
-            count = (count + 1) % 4; // cycles through 0-3
+            count = (count + 1) % 4; // cycles 0-3 dots
             setLoadingDots(".".repeat(count));
         }, 400);
 
@@ -69,11 +69,12 @@ export default function DuelSetup() {
 
         if (!topic.trim()) newErrors.topic = "Please enter a topic.";
         if (!scope.trim() || scope.trim().length < 20)
-            newErrors.scope = "Please describe the scope in more detail (at least 20 characters).";
+            newErrors.scope =
+                "Please describe the scope in more detail (at least 20 characters). Include what should and should NOT be quizzed.";
         if (!questions_ || isNaN(questions_) || questions_ < 1)
             newErrors.questions = "Please enter a valid number of questions.";
-        if (!timer || isNaN(timer) || timer < 10)
-            newErrors.timer = "Please select a valid study time.";
+        if (!timer || isNaN(timer) || timer < 1)
+            newErrors.timer = "Please enter a valid study time (at least 1 minute).";
 
         setErrors(newErrors);
 
@@ -93,6 +94,14 @@ export default function DuelSetup() {
         <div className="min-h-screen bg-gray-100 flex justify-center items-center px-4 py-10">
             <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-xl space-y-6">
                 <h1 className="text-2xl font-bold text-center">Set Up a Duel 🧠⚔️</h1>
+
+                {/* Instructions */}
+                <div className="bg-blue-50 border border-blue-300 p-4 rounded-md text-blue-800 text-sm">
+                    <p>
+                        <strong>Tip:</strong> Choose a <em>specific</em> topic for a quick and fun game.
+                        For example, instead of "US History," try "Manifest Destiny" or "Civil War Battles."
+                    </p>
+                </div>
 
                 {/* Topic Input */}
                 <div>
@@ -119,7 +128,7 @@ export default function DuelSetup() {
                     </label>
                     <textarea
                         ref={scopeRef}
-                        placeholder="Include chapters, subtopics, learning goals, or specific concepts..."
+                        placeholder="Include chapters, subtopics, learning goals, or specific concepts. Be sure to tell the AI exactly what should and should NOT be quizzed."
                         value={scope}
                         onChange={(e) => setScope(e.target.value)}
                         rows={5}
@@ -130,25 +139,25 @@ export default function DuelSetup() {
                     {errors.scope && <p className="text-sm text-red-500 mt-1">{errors.scope}</p>}
                 </div>
 
-                {/* Study Time Dropdown */}
+                {/* Study Time Input */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        How much study time do you want?
+                        How much study time do you want? (minutes)
                     </label>
-                    <select
+                    <input
                         ref={timerRef}
+                        type="number"
+                        min={1}
+                        max={60}
                         value={timer}
-                        onChange={(e) => setTimer(parseInt(e.target.value))}
+                        onChange={(e) => setTimer(parseInt(e.target.value) || "")}
                         className={`w-full border ${
                             errors.timer ? "border-red-500" : "border-gray-300"
                         } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    >
-                        {[10, 15, 20, 25, 30].map((min) => (
-                            <option key={min} value={min}>
-                                {min} minutes
-                            </option>
-                        ))}
-                    </select>
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                        Recommended: between 10 and 30 minutes for a quick and fun game.
+                    </p>
                     {errors.timer && <p className="text-sm text-red-500 mt-1">{errors.timer}</p>}
                 </div>
 
@@ -160,8 +169,9 @@ export default function DuelSetup() {
                     <input
                         ref={questionsRef}
                         type="number"
+                        min={1}
                         value={questions_}
-                        onChange={(e) => setQuestions_(parseInt(e.target.value))}
+                        onChange={(e) => setQuestions_(parseInt(e.target.value) || "")}
                         className={`w-full border ${
                             errors.questions ? "border-red-500" : "border-gray-300"
                         } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
