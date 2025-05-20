@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/WebSocketContext.jsx";
 import { useUser } from "@clerk/clerk-react";
@@ -10,14 +10,31 @@ export default function DuelSetup() {
     const [questions_, setQuestions_] = useState(10);
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const [loadingDots, setLoadingDots] = useState("");
 
     const topicRef = useRef(null);
     const scopeRef = useRef(null);
     const timerRef = useRef(null);
+    const questionsRef = useRef(null);
 
     const { connect, send, socketRef, roomCodeRef, setQuestions } = useWebSocket();
     const navigate = useNavigate();
     const { user } = useUser();
+
+    useEffect(() => {
+        if (!loading) {
+            setLoadingDots("");
+            return;
+        }
+
+        let count = 0;
+        const interval = setInterval(() => {
+            count = (count + 1) % 4; // cycles through 0-3
+            setLoadingDots(".".repeat(count));
+        }, 400);
+
+        return () => clearInterval(interval);
+    }, [loading]);
 
     const connectWebSocket = () => {
         connect();
@@ -27,8 +44,8 @@ export default function DuelSetup() {
                 action: "createRoom",
                 topic,
                 scope,
-                studyTime: 1,
-                questions_,
+                studyTime: timer,
+                questions_: questions_,
                 hostId: user.id,
             });
         };
@@ -41,6 +58,7 @@ export default function DuelSetup() {
                 roomCodeRef.current = roomCode;
                 setQuestions(data.generatedQuestions);
                 navigate(`/study?code=${roomCode}`);
+                setLoading(false);
             }
         };
     };
@@ -140,6 +158,7 @@ export default function DuelSetup() {
                         How many questions do you want in your quiz?
                     </label>
                     <input
+                        ref={questionsRef}
                         type="number"
                         value={questions_}
                         onChange={(e) => setQuestions_(parseInt(e.target.value))}
@@ -154,10 +173,37 @@ export default function DuelSetup() {
 
                 {/* Generate Link Button */}
                 <button
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition cursor-pointer"
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition cursor-pointer flex justify-center items-center"
                     onClick={handleGenerateLink}
+                    disabled={loading}
                 >
-                    {loading ? "Loading..." : "Generate Duel Link"}
+                    {loading ? (
+                        <>
+                            Loading{loadingDots}
+                            <svg
+                                className="animate-spin ml-2 h-5 w-5 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                />
+                                <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                                />
+                            </svg>
+                        </>
+                    ) : (
+                        "Generate Duel Link"
+                    )}
                 </button>
             </div>
         </div>

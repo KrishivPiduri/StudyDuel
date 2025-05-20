@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useUser } from "@clerk/clerk-react";
+import {useNavigate} from "react-router-dom";
 
 function Button({ children, className, ...props }) {
     return (
@@ -12,15 +14,18 @@ function Button({ children, className, ...props }) {
 }
 
 export default function Dashboard() {
+    const { user, isLoaded } = useUser();
     const [createdCount, setCreatedCount] = useState(0);
     const [joinedCount, setJoinedCount] = useState(0);
+    const navigate= useNavigate();
 
     useEffect(() => {
-        // Fetch counts from backend or local storage
-        // Placeholder logic for now:
-        setCreatedCount(5);
-        setJoinedCount(3);
-    }, []);
+        if (isLoaded && user) {
+            // Pull from publicMetadata, fallback to 0 if missing
+            setCreatedCount(user.publicMetadata?.roomsCreated ?? 0);
+            setJoinedCount(user.publicMetadata?.roomsJoined ?? 0);
+        }
+    }, [isLoaded, user]);
 
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
@@ -43,10 +48,10 @@ export default function Dashboard() {
             </div>
 
             <Button
-                className="text-xl px-8 py-3 bg-green-600 hover:bg-green-700 rounded-xl"
+                className="text-xl px-8 py-3 bg-green-600 hover:bg-green-700 rounded-xl cursor-pointer"
                 onClick={() => {
                     // Logic to create a duel
-                    console.log("Create duel");
+                    navigate("/duel");
                 }}
             >
                 ➕ Create Duel
