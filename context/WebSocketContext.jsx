@@ -1,5 +1,5 @@
 // WebSocketContext.js
-import { createContext, useContext, useRef, useEffect } from "react";
+import {createContext, useContext, useRef, useEffect, useState} from "react";
 
 const WEBSOCKET_URL = "wss://0qv6ptdpdh.execute-api.us-east-1.amazonaws.com/production/";
 const WebSocketContext = createContext();
@@ -7,7 +7,7 @@ const WebSocketContext = createContext();
 export function WebSocketProvider({ children }) {
     const socketRef = useRef(null);
     const roomCodeRef = useRef(null);
-    const questionsRef = useRef(null);
+    const [questions, setQuestions] = useState([]);
 
     const connect = () => {
         if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
@@ -30,7 +30,7 @@ export function WebSocketProvider({ children }) {
     }, []);
 
     return (
-        <WebSocketContext.Provider value={{ socket: socketRef.current, connect, send, socketRef, roomCodeRef, questionsRef }}>
+        <WebSocketContext.Provider value={{ socket: socketRef.current, connect, send, socketRef, roomCodeRef, questions, setQuestions }}>
             {children}
         </WebSocketContext.Provider>
     );

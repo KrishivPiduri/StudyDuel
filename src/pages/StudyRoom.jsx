@@ -9,6 +9,7 @@ export default function StudyRoom() {
     const [time, setTime] = useState(15);
     const [loading, setLoading] = useState(true);
     const roomCode = searchParams.get("code");
+    const [endTime, setEndTime] = useState(null); // epoch time in ms
 
     const [isHost, setIsHost] = useState(false);
     const [guestStatus, setGuestStatus] = useState("waiting");
@@ -20,7 +21,7 @@ export default function StudyRoom() {
 
     const navigate = useNavigate();
     const { user } = useUser();
-    const { socketRef, connect, send } = useWebSocket();
+    const { socketRef, connect, send, setQuestions } = useWebSocket();
 
     const getTimerColor = () => {
         if (countdown > 60) return "text-green-600";
@@ -30,12 +31,13 @@ export default function StudyRoom() {
 
     // Join room on mount (or when user/roomCode changes)
     useEffect(() => {
-        if (!user?.id) return;
-        connect();
+        if (!user?.id || !roomCode) return;
+
+        connect(); // <--- MISSING, add this line
 
         const socket = socketRef.current;
-        const handleOpen = () => {
-            console.log("handleOpen");
+
+        const handleJoin = () => {
             send({
                 action: "joinRoom",
                 userId: user.id,
@@ -43,16 +45,13 @@ export default function StudyRoom() {
             });
         };
 
-        // If already open, send immediately; otherwise wait for open
-        if (socket?.readyState === WebSocket.OPEN) {
-            handleOpen();
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            handleJoin();
         } else if (socket) {
-            socket.addEventListener("open", handleOpen);
-            return () => {
-                socket.removeEventListener("open", handleOpen);
-            };
+            socket.addEventListener("open", handleJoin);
+            return () => socket.removeEventListener("open", handleJoin);
         }
-    }, [user, roomCode, send, connect, socketRef]);
+    }, [user?.id, roomCode]);
 
     // Handle incoming WebSocket messages
     useEffect(() => {
@@ -61,75 +60,78 @@ export default function StudyRoom() {
 
         const handleMessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log(data);
-            console.log(data.type==="oppJoined");
-            if (data.type === "oppJoined") {
-                setGuestStatus("connected");
-            } else {
-                const room = data.room || {};
-
-                if (room) {
+            switch (data.type) {
+                case "oppJoined":
+                    setGuestStatus("connected");
+                    break;
+                case "joinSucc":
+                case "alrHost": {
+                    const room = data.room || {};
+                    console.log("room", room);
+                    setQuestions(room.generatedQuestions || []);
+                    if (room.closed) {
+                        alert("This room is already closed. Please start a new one.");
+                        navigate("/duel");
+                        return;
+                    }
                     setTopic(room.topic || "Unknown Topic");
                     setTime(room.studyTime || 15);
                     setCountdown((room.studyTime || 15) * 60);
-
-                    // Set role
-                    const isCurrentHost = room.hostId === user.id;
-                    setIsHost(isCurrentHost);
-
-                    // Set opponent readiness
-                    const opponentIsReady = isCurrentHost ? room.guestReady : room.hostReady;
+                    setIsHost(room.hostId === user.id);
+                    const opponentIsReady = room.hostId === user.id ? room.guestReady : room.hostReady;
                     setOpponentReady(opponentIsReady);
-
-                    // ✅ Set loading to false after we get room data
                     setLoading(false);
+                    break;
                 }
-
-                switch (data.type) {
-                    case "alrHost":
-                        setIsHost(true);
-                        break;
-                    case "joinSucc":
-                        // All room info is handled above
-                        break;
-                    case "opponentReady":
-                        setOpponentReady(true);
-                        break;
-                    case "startGame":
-                        setStudyStarted(true);
-                        break;
-                    case "guestReady":
-                        if (isHost) setOpponentReady(true);
-                        break;
-                    case "hostReady":
-                        if (!isHost) setOpponentReady(true);
-                        break;
-                    default:
-                        break;
+                case "opponentReady":
+                    setOpponentReady(true);
+                    break;
+                case "startGame": {
+                    const now = Date.now();
+                    const durationInMs = time * 60 * 1000;
+                    setEndTime(now + durationInMs);
+                    setStudyStarted(true);
+                    break;
                 }
+                case "guestReady":
+                    if (isHost) setOpponentReady(true);
+                    break;
+                case "hostReady":
+                    if (!isHost) setOpponentReady(true);
+                    break;
+                default:
+                    break;
             }
         };
 
         socket.addEventListener("message", handleMessage);
         return () => socket.removeEventListener("message", handleMessage);
-    }, [socketRef, user, isHost]);
+    }, [socketRef, user]);
 
 
     // Start countdown when both are ready
     useEffect(() => {
         if (youReady && opponentReady) {
+            const now = Date.now();
+            const durationInMs = time * 60 * 1000;
+            setEndTime(now + durationInMs);
             setStudyStarted(true);
         }
     }, [youReady, opponentReady]);
 
     // Countdown timer
     useEffect(() => {
-        if (!studyStarted || countdown <= 0) return;
-        const timerId = setInterval(() => {
-            setCountdown((prev) => prev - 1);
+        if (!studyStarted || !endTime) return;
+
+        const intervalId = setInterval(() => {
+            const now = Date.now();
+            const timeLeft = Math.max(0, Math.floor((endTime - now) / 1000));
+            setCountdown(timeLeft);
         }, 1000);
-        return () => clearInterval(timerId);
-    }, [studyStarted, countdown]);
+
+        return () => clearInterval(intervalId);
+    }, [studyStarted, endTime]);
+
 
     // Redirect to quiz when time’s up
     useEffect(() => {

@@ -3,7 +3,8 @@ import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 import levelUpSfx from "/sounds/level-up.mp3";
-import useWebSocket from "react-use-websocket";
+import { useWebSocket } from "../../context/WebSocketContext.jsx";
+import {useUser} from "@clerk/clerk-react";
 
 export default function Quiz() {
     const [playCorrect] = useSound(correctSfx);
@@ -13,6 +14,9 @@ export default function Quiz() {
     const [topicName, setTopicName] = useState("");
     const [scopeDescription, setScopeDescription] = useState("");
     const [hasSubmittedDescription, setHasSubmittedDescription] = useState(false);
+    const [oppScore, setOppScore] = useState(0);
+    const [wasLeading, setWasLeading] = useState(true); // assume user starts ahead
+    const [leadChanged, setLeadChanged] = useState(false);
 
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selected, setSelected] = useState(null);
@@ -21,9 +25,39 @@ export default function Quiz() {
     const [showFeedback, setShowFeedback] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
     const [questionTimer, setQuestionTimer] = useState(15);
-    const {questions} = useWebSocket();
+    const {questions, send, roomCodeRef, socketRef, connect} = useWebSocket();
+    const socketStuff = useWebSocket();
+    console.log("socketStuff", socketStuff);
+    const { user } = useUser();
 
-    const current = questions[currentIndex];
+    useEffect(() => {
+        connect();
+        const socket = socketRef.current;
+        if (!socket) return;
+
+        const handleMessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type==="scoreUpdate") {
+                setOppScore(data.score);
+            }
+        };
+
+        socket.addEventListener("message", handleMessage);
+        return () => socket.removeEventListener("message", handleMessage);
+    }, [socketRef]);
+
+    useEffect(() => {
+        const currentlyLeading = score >= oppScore;
+        if (currentlyLeading !== wasLeading) {
+            setLeadChanged(true);
+            setWasLeading(currentlyLeading);
+
+            // Reset animation flag after a moment
+            setTimeout(() => {
+                setLeadChanged(false);
+            }, 1500);
+        }
+    }, [score, oppScore]);
 
     useEffect(() => {
         if (currentIndex >= questions.length || !hasSubmittedDescription) return;
@@ -42,7 +76,7 @@ export default function Quiz() {
         if (selected) return;
         setSelected(option);
 
-        const correct = option === current.answer;
+        const correct = option === questions[currentIndex].answer;
         setIsCorrect(correct);
         setShowFeedback(true);
 
@@ -55,6 +89,12 @@ export default function Quiz() {
             const pointsEarned = Math.floor((baseScore + speedBonus) * streakMultiplier);
 
             setScore((s) => s + pointsEarned);
+            send({
+                action: "score",
+                roomCode: roomCodeRef.current,
+                userId: user.id,
+                score: score
+            })
             setStreak(nextStreak);
 
             if (nextStreak === 3) {
@@ -73,46 +113,6 @@ export default function Quiz() {
         }, 1500);
     };
 
-    if (!hasSubmittedDescription) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen w-screen bg-black text-white px-4 text-center">
-                <h1 className="text-3xl font-bold mb-4">Set Up Your Custom Quiz</h1>
-                <p className="text-md text-gray-300 mb-6 max-w-xl">
-                    Tell us what you're studying and describe the full scope of what you need to know.
-                    Include chapter names, key topics, concepts, or any details from your course.
-                    The more detailed you are, the better your questions will be.
-                </p>
-
-                <input
-                    type="text"
-                    className="w-full max-w-xl p-4 text-black rounded-lg mb-4"
-                    placeholder="Enter your topic (e.g., Biology 101, World War II)"
-                    value={topicName}
-                    onChange={(e) => setTopicName(e.target.value)}
-                />
-
-                <textarea
-                    className="w-full max-w-xl h-40 p-4 text-black rounded-lg resize-none mb-4"
-                    placeholder="Describe the scope of your topic in detail (e.g., cell biology, photosynthesis, evolution...)"
-                    value={scopeDescription}
-                    onChange={(e) => setScopeDescription(e.target.value)}
-                />
-
-                <button
-                    disabled={topicName.trim().length < 3 || scopeDescription.trim().length < 20}
-                    onClick={() => setHasSubmittedDescription(true)}
-                    className={`px-6 py-3 rounded-xl text-white font-bold transition-all ${
-                        topicName.trim().length < 3 || scopeDescription.trim().length < 20
-                            ? "bg-gray-600 cursor-not-allowed"
-                            : "bg-green-600 hover:bg-green-700"
-                    }`}
-                >
-                    Start Quiz
-                </button>
-            </div>
-        );
-    }
-
     if (currentIndex >= questions.length) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen w-screen bg-black text-white text-center space-y-4 px-4">
@@ -129,18 +129,19 @@ export default function Quiz() {
     }
 
     return (
-        <div className="min-h-screen w-screen bg-gray-900 text-white flex flex-col justify-center items-center overflow-hidden px-4">
-            <div className="text-3xl font-bold mb-6 text-center">{current.question}</div>
+        <div
+            className="min-h-screen w-screen bg-gray-900 text-white flex flex-col justify-center items-center overflow-hidden px-4">
+            <div className="text-3xl font-bold mb-6 text-center">{questions[currentIndex].question}</div>
 
             <div className="grid grid-cols-2 gap-4 w-full max-w-md mb-8">
-                {current.options.map((opt) => (
+                {questions[currentIndex].options.map((opt) => (
                     <button
                         key={opt}
                         disabled={!!selected}
                         onClick={() => handleSelect(opt)}
                         className={`p-4 rounded-xl transition-all duration-300 text-lg font-semibold cursor-pointer
                             ${selected
-                            ? opt === current.answer
+                            ? opt === questions[currentIndex].answer
                                 ? "bg-green-500 text-white"
                                 : opt === selected
                                     ? "bg-red-500 text-white"
@@ -153,16 +154,17 @@ export default function Quiz() {
                     </button>
                 ))}
             </div>
-
-            <div className="flex gap-12 mb-6 text-2xl font-bold text-center">
+            <div className="flex flex-col md:flex-row gap-8 md:gap-16 mb-6 text-2xl font-bold text-center items-center">
                 <div className="text-blue-400">
                     Time:{" "}
                     <span className={`${questionTimer <= 5 ? "text-red-500 font-extrabold" : "text-white"} text-3xl`}>
-                        {questionTimer}s
-                    </span>
+            {questionTimer}s
+        </span>
                 </div>
+
                 <div className="text-green-400">
-                    Score: <span className="text-white text-3xl">{score}</span>
+                    Your Score:{" "}
+                    <span className="text-white text-3xl">{score}</span>
                 </div>
                 <div className="text-yellow-400">
                     Streak: <span className="text-white text-3xl">{streak}</span>

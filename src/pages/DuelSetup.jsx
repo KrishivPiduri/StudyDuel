@@ -12,11 +12,10 @@ export default function DuelSetup() {
     const [loading, setLoading] = useState(false);
 
     const topicRef = useRef(null);
-    const questionsRef = useRef(null);
     const scopeRef = useRef(null);
     const timerRef = useRef(null);
 
-    const { connect, send, socketRef, roomCodeRef, questions } = useWebSocket();
+    const { connect, send, socketRef, roomCodeRef, setQuestions } = useWebSocket();
     const navigate = useNavigate();
     const { user } = useUser();
 
@@ -24,28 +23,25 @@ export default function DuelSetup() {
         connect();
 
         socketRef.current.onopen = () => {
-            console.log("WebSocket connection established.");
             send({
                 action: "createRoom",
                 topic,
                 scope,
-                studyTime: timer,
-                questions,
+                studyTime: 1,
+                questions_,
                 hostId: user.id,
             });
         };
 
         socketRef.current.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log(data);
             if (data.type === "roomCreated") {
                 const { roomCode } = data;
                 roomCodeRef.current = roomCode;
+                setQuestions(data.generatedQuestions);
                 navigate(`/study?code=${roomCode}`);
             }
-        };
-
-        socketRef.current.onclose = () => {
-            console.log("WebSocket connection closed.");
         };
     };
 
@@ -93,7 +89,7 @@ export default function DuelSetup() {
                         onChange={(e) => setTopic(e.target.value)}
                         className={`w-full border ${
                             errors.topic ? "border-red-500" : "border-gray-300"
-                        } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400`}
                     />
                     {errors.topic && <p className="text-sm text-red-500 mt-1">{errors.topic}</p>}
                 </div>
@@ -111,7 +107,7 @@ export default function DuelSetup() {
                         rows={5}
                         className={`w-full border ${
                             errors.scope ? "border-red-500" : "border-gray-300"
-                        } rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400`}
                     />
                     {errors.scope && <p className="text-sm text-red-500 mt-1">{errors.scope}</p>}
                 </div>
@@ -144,7 +140,6 @@ export default function DuelSetup() {
                         How many questions do you want in your quiz?
                     </label>
                     <input
-                        ref={questionsRef}
                         type="number"
                         value={questions_}
                         onChange={(e) => setQuestions_(parseInt(e.target.value))}
