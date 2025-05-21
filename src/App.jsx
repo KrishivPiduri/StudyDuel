@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import SSOCallback from "./pages/SSOCallback";
 import Navbar from "../components/Navbar.jsx";
 import {RedirectToSignIn, useUser} from "@clerk/clerk-react";
+import HowToUse from "./pages/howToUse.jsx";
 
 function ProtectedRoute({ children }) {
     const { isSignedIn, isLoaded } = useUser();
@@ -26,7 +27,7 @@ function ProtectedRoute({ children }) {
 
 function App() {
     return (
-        <div className="min-h-screen flex flex-col overflow-hidden">
+        <div className="min-h-screen flex flex-col">
             <Navbar/>
             <Routes>
                 <Route path="/" element={<LandingPage/>}/>
@@ -38,6 +39,7 @@ function App() {
                 <Route path="/quiz" element={<ProtectedRoute><Quiz/></ProtectedRoute>}/>
                     <Route path="/results" element={<Results/>}/>
                 <Route path="/login/sso-callback" element={<SSOCallback/>}/>
+                <Route path={"/about"} element={<HowToUse/>}/>
             </Routes>
         </div>
     );
