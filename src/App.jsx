@@ -11,12 +11,11 @@ import SSOCallback from "./pages/SSOCallback";
 import Navbar from "../components/Navbar.jsx";
 import {RedirectToSignIn, useUser} from "@clerk/clerk-react";
 import HowToUse from "./pages/howToUse.jsx";
+import RedditClaimChecker from "./pages/Reddit.jsx";
 
 function ProtectedRoute({ children }) {
     const { isSignedIn, isLoaded } = useUser();
-
     if (!isLoaded) return null; // or a spinner
-
     if (!isSignedIn) {
         return <RedirectToSignIn />;
     }
@@ -40,6 +39,7 @@ function App() {
                     <Route path="/results" element={<Results/>}/>
                 <Route path="/login/sso-callback" element={<SSOCallback/>}/>
                 <Route path={"/about"} element={<HowToUse/>}/>
+                <Route path={"/reddit"} element={<RedditClaimChecker/>}/>
             </Routes>
         </div>
     );
