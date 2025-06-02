@@ -5,7 +5,7 @@ import App from "./App";
 import { ClerkProvider } from '@clerk/clerk-react'
 import {WebSocketProvider} from "../context/WebSocketContext.jsx";
 
-const PUBLISHABLE_KEY = "pk_test_bWFpbi13YXJ0aG9nLTY5LmNsZXJrLmFjY291bnRzLmRldiQ";
+const PUBLISHABLE_KEY = "pk_live_Y2xlcmsuZHVlbC5oYWNreW91cmdyYWRlLmNvbSQ";
 
 if (!PUBLISHABLE_KEY) {
     throw new Error('Add your Clerk Publishable Key to the .env file');
